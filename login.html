@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Login | mahbub.github.io</title>
+  <style>
+    /* সহজ ও পরিষ্কার স্টাইল — চাইলে তোমার সাইটের সিএসএস অনুযায়ী বদলাও */
+    body{font-family:Arial, sans-serif;background:#f4f4f4;display:flex;align-items:center;justify-content:center;height:100vh;margin:0}
+    .login-container{background:#fff;padding:24px;border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,0.08);width:360px}
+    .login-container h2{text-align:center;margin:0 0 16px}
+    label{display:block;margin:8px 0 4px;font-size:14px}
+    input[type="text"], input[type="password"]{width:100%;padding:10px;border:1px solid #ccc;border-radius:6px;font-size:14px}
+    button{width:100%;padding:10px;margin-top:12px;border:none;border-radius:6px;background:#007BFF;color:#fff;font-size:16px;cursor:pointer}
+    button:hover{opacity:0.95}
+    .error{color:#b00020;margin:8px 0;display:none}
+    .hint{font-size:13px;color:#555;margin-top:10px;text-align:center}
+  </style>
+</head>
+<body>
+  <div class="login-container">
+    <h2>Login</h2>
+    <div id="error-msg" class="error">ভুল ব্যবহারকারীর নাম বা পাসওয়ার্ড</div>
+
+    <form id="login-form">
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" autocomplete="username" required />
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" autocomplete="current-password" required />
+
+      <button type="submit">Login</button>
+    </form>
+
+    <div class="hint">If you have no account, contact the site admin.</div>
+  </div>
+
+  <script>
+    /*
+      নির্দেশনা (বাংলা):
+      - নিচের useServer পরিবর্তন করে তোমার প্রকৃত সার্ভার ব্যবহার করবে।
+      - ডিফল্টে useServer=false রাখা আছে যাতে তুমি লোকালভাবে পরীক্ষা করতে পারো।
+      - সার্ভার মোডে সার্ভারকে POST /api/login (JSON) রিসিভ করে { success:true, token:... } এর মতো রেসপন্স দিতে হবে।
+      - নিরাপত্তার কারণে token সংরক্ষণ করার পদ্ধতি: সবচেয়ে নিরাপদ হলো server-side httpOnly cookie সেট করা।
+    */
+
+    const useServer = false; // ডেমো: false -> লোকালি কাজ করবে, true -> fetch(/api/login) করবে
+
+    const form = document.getElementById('login-form');
+    const errEl = document.getElementById('error-msg');
+
+    function showError(msg){ errEl.textContent = msg; errEl.style.display = 'block'; }
+    function hideError(){ errEl.style.display = 'none'; }
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      hideError();
+
+      const username = document.getElementById('username').value.trim();
+      const password = document.getElementById('password').value;
+
+      if(!username || !password){ showError('সব ক্ষেত্র পূরণ করুন'); return; }
+
+      if(!useServer){
+        // DEMO MODE: শুধু লোকাল টেস্টের জন্য
+        if(username === 'admin' && password === 'password123'){
+          alert('লগইন সফল (ডেমো)');
+          // এখানে redirect করে দিতে পারো
+          window.location.href = 'index.html';
+        } else {
+          showError('ভুল ব্যবহারকারীর নাম বা পাসওয়ার্ড');
+        }
+        return;
+      }
+
+      // SERVER MODE: এখানে তোমার API কল করবে
+      try{
+        const res = await fetch('/api/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        // যদি সার্ভার 200 ছাড়া কিছু রিটার্ন করে
+        if(!res.ok){
+          const text = await res.text();
+          showError('Server error: ' + (text || res.status));
+          return;
+        }
+
+        const data = await res.json();
+        // প্রত্যাশিত: { success: true, token: '...' }
+        if(data && data.success){
+          // নিরাপত্তা টিপ: সার্ভার যদি httpOnly cookie সেট না করে থাকে
+          // তবে client-side token সংরক্ষণকে এড়াও (XSS ঝুঁকি)। বিকল্প: server httpOnly cookie ব্যবহার করো।
+          if(data.token){
+            // যদি তুমি সর্বোচ্চ সহজতা চাও (নো রিকমেন্ড):
+            // localStorage.setItem('token', data.token);
+            // নিরাপদ উপায়: সার্ভার থেকে httpOnly cookie পাঠাও — তখন এখানে কিছু করার দরকার নেই।
+          }
+
+          // লগইন সফল হলে redirect
+          window.location.href = data.redirect || 'index.html';
+        } else {
+          showError((data && data.message) ? data.message : 'ভুল ব্যবহারকারীর নাম/পাসওয়ার্ড');
+        }
+
+      } catch(err){
+        console.error(err);
+        showError('অপ্রত্যাশিত ত্রুটি। কনসোলে দেখো।');
+      }
+
+    });
+
+  </script>
+</body>
+</html>
